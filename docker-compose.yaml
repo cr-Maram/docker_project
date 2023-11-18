@@ -1,0 +1,83 @@
+version: '3'
+
+services:
+  mongo1:
+    image: mongo:5
+    container_name: mongo1
+    ports:
+      - "27017:27017"
+    command: "mongod --replSet myReplicaSet --bind_ip localhost,mongo1"
+    healthcheck:
+      test: "mongosh --port 27017 --eval \"rs.initiate({_id:'myReplicaSet', members: [{_id:0, host: 'mongo1:27017'},{_id:1, host: 'mongo2:27017'},{_id:2, host: 'mongo3:27017'}]})\""
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    networks:
+      - docker_project
+    volumes:
+      - ${MONGO_DATA_PATH}/data1:/data/db:rw
+
+  mongo2:
+    image: mongo:5
+    container_name: mongo2
+    ports:
+      - "27018:27017"
+    command: "mongod --replSet myReplicaSet --bind_ip localhost,mongo2"
+    networks:
+      - docker_project
+    volumes:
+      - ${MONGO_DATA_PATH}/data2:/data/db:rw
+
+  mongo3:
+    image: mongo:5
+    container_name: mongo3
+    ports:
+      - "27019:27017"
+    command: "mongod --replSet myReplicaSet --bind_ip localhost,mongo3"
+    networks:
+      - docker_project
+    volumes:
+      - ${MONGO_DATA_PATH}/data3:/data/db:rw
+
+  yolo5:
+    image: masd109/yolo5:v1
+    container_name: yolo5
+    ports:
+      - "8081:8081"
+    networks:
+      - docker_project
+    environment:
+      - AWS_SHARED_CREDENTIALS_FILE=/run/secrets/aws_credentials
+      - BUCKET_NAME=${BUCKET_NAME}
+      - CONNECTION_STRING=${CONNECTION_STRING}
+    secrets:
+      - aws_credentials
+
+  polybot:
+    image: masd109/polybot:v1
+    container_name: polybot
+    ports:
+      - "8443:8443"
+    networks:
+      - docker_project
+    environment:
+      - AWS_SHARED_CREDENTIALS_FILE=/run/secrets/aws_credentials
+      - BUCKET_NAME=${BUCKET_NAME}
+      - TELEGRAM_TOKEN_FILE=/run/secrets/telegram_token
+      - TELEGRAM_APP_URL=${TELEGRAM_APP_URL}
+      - CONNECTION_STRING=${CONNECTION_STRING}
+    secrets:
+      - aws_credentials
+      - telegram_token
+
+networks:
+  docker_project:
+    driver: bridge
+
+secrets:
+  aws_credentials:
+    file: ${CREDENTIALS_HOST_PATH}
+  telegram_token:
+    file: ${TELEGRAM_TOKEN_FILE}
+    
